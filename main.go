@@ -84,9 +84,9 @@ func main() {
 	if !AdminExists(db) {
 		fmt.Println("No admin user found, creating admin user...")
 
-		username := "admin"
+		username := os.Getenv("USERNAME")
 		email := "admin@example.com"
-		password := "securepassword"
+		password := os.Getenv("PASSWORD")
 
 		err = CreateAdminUser(db, username, email, password)
 		if err != nil {
@@ -100,19 +100,21 @@ func main() {
 	// Initialize your handlers as usual
 	mux := http.NewServeMux()
 	mux.HandleFunc("/login", loginHandler)
-	mux.HandleFunc("/createbanner", createBanner)
+	mux.HandleFunc("/createbanner", authenticate(createBanner))
 	mux.HandleFunc("/banners", getBanners)
-	mux.HandleFunc("/createproduct", createProduct)
-	mux.HandleFunc("/deleteproduct", deleteProduct)
-	mux.HandleFunc("/updateproduct", updateProduct)
-	mux.HandleFunc("/tags/create", createTag)
+	mux.HandleFunc("/product/create", authenticate(createProduct))
+	mux.HandleFunc("/product/delete", authenticate(deleteProduct))
+	// createJsonTest
+	mux.HandleFunc("/product/update", authenticate(updateProduct))
+	// mux.HandleFunc("/test/json", createJsonTest)
+	mux.HandleFunc("/tags/create", authenticate(createTag))
 	mux.HandleFunc("/tags", getTags)
-	mux.HandleFunc("/tags/update", updateTag)
-	mux.HandleFunc("/tags/delete", deleteTag)
-	mux.HandleFunc("/category/create", createCategory)
+	mux.HandleFunc("/tags/update", authenticate(updateTag))
+	mux.HandleFunc("/tags/delete", authenticate(deleteTag))
+	mux.HandleFunc("/category/create", authenticate(createCategory))
 	mux.HandleFunc("/categories", getCategories)
-	mux.HandleFunc("/category/update", updateCategory)
-	mux.HandleFunc("/category/delete", deleteCategory)
+	mux.HandleFunc("/category/update", authenticate(updateCategory))
+	mux.HandleFunc("/category/delete", authenticate(deleteCategory))
 
 	// Wrap the mux with CORS handling
 	c := cors.New(cors.Options{
@@ -128,7 +130,41 @@ func main() {
 
 }
 
+func authenticate(next http.HandlerFunc) http.HandlerFunc {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie("token")
+		if err != nil {
+			http.Error(w, "Missing token", http.StatusUnauthorized)
+			return
+		}
+
+		tokenStr := cookie.Value
+
+		claims := &Claims{}
+		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+			return jwtKey, nil
+		})
+		if err != nil || !token.Valid {
+			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+
+	})
+}
 func enableCors(w *http.ResponseWriter) {
-	(*w).Header().Set("Access-Control-Allow-Origin", "*") // Allow all origins for development; restrict in production
+	(*w).Header().Set("Access-Control-Allow-Origin", "http://localhost:3000") // Specify your frontend URL
+	(*w).Header().Set("Access-Control-Allow-Credentials", "true")
+	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS") // Specify allowed methods
+
+	// (*w).Header().Set("Access-Control-Allow-Origin", "*") // Allow all origins for development; restrict in production
 	(*w).Header().Set("Access-Control-Allow-Headers", "Content-Type")
 }
+
+// func enableCors(w *http.ResponseWriter) {
+// 	(*w).Header().Set("Access-Control-Allow-Origin", "http://localhost:3000") // Specify your frontend URL
+// 	(*w).Header().Set("Access-Control-Allow-Credentials", "true")
+// 	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS") // Specify allowed methods
+// 	(*w).Header().Set("Access-Control-Allow-Headers", "Content-Type")
+// }

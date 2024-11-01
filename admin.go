@@ -69,7 +69,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var dbUsername, dbPasswordHash string
-	err = db.QueryRow("SELECT username, password_hash FROM admin_user WHERE username = $1", username).Scan(&dbUsername, &dbPasswordHash)
+	err = db.QueryRow("SELECT username, password FROM admin_user WHERE username = $1", username).Scan(&dbUsername, &dbPasswordHash)
 	if err != nil {
 		http.Error(w, "Invalid user", http.StatusUnauthorized)
 		return
@@ -104,14 +104,13 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		Value:    tokenString,
 		Expires:  expirationTime,
 		HttpOnly: true,
-		Secure:   true,
+		SameSite: http.SameSiteLaxMode, // Adjust as necessary
+		Secure:   false,                // Set to true in production with HTTPS
 	})
 
 	w.Header().Set("Content-Type", "application/json")
-
+	w.WriteHeader(http.StatusOK) // Set response status to 200
 	json.NewEncoder(w).Encode(map[string]string{
-		"token":   tokenString,
 		"message": fmt.Sprintf("Welcome, %s!", dbUsername),
 	})
-
 }

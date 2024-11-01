@@ -8,17 +8,28 @@ CREATE TABLE IF NOT EXISTS banners (
     ctaaction VARCHAR(255)
 );
 
-CREATE TABLE IF NOT EXISTS  products (
-    id             SERIAL PRIMARY KEY,
-    name           VARCHAR(255) NOT NULL,
-    category       JSONB,
-    catalog        TEXT,
-    features       JSONB,
-    specifications JSONB,
-    techinfo       JSONB,
-    tags           JSONB,
-    images         JSONB
+CREATE TABLE IF NOT EXISTS products (
+    id serial PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    category TEXT[],
+    catalog TEXT,
+    feature_desc TEXT,
+    feature_list json,
+    specifications json,
+    techinfo json,
+    tags TEXT[],
+    image_gallery TEXT[],
+    CONSTRAINT unique_prod_name UNIQUE (name)
 );
+
+
+CREATE TABLE IF NOT EXISTS jsontest1 (
+    id serial primary key, 
+    data json,
+    category TEXT[]
+);
+
+
 
 CREATE TABLE IF NOT EXISTS tags (
     id SERIAL PRIMARY KEY,

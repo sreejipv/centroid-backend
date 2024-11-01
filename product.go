@@ -21,18 +21,43 @@ type Category struct {
 	ImgURL      string `json:"imgurl,omitempty"` // Use pointers for nullable fields
 	Description string `json:"description,omitempty"`
 }
-
 type Product struct {
-	ID             int                    `json:"id"`
-	Name           string                 `json:"name"`
-	Category       string                 `json:"category"`
-	Feature_Desc   map[string]interface{} `json:"feature_desc"`
-	Feature_list   map[string]interface{} `json:"feature_list"`
-	Catalog        string                 `json:"catalog"`
-	Specifications map[string]interface{} `json:"specifications"`
-	TechInfo       map[string]interface{} `json:"techinfo"`
-	Tags           map[string]interface{} `json:"tags"`
-	Images         map[string]interface{} `json:"images"`
+	ID             int             `json:"id"`
+	Name           string          `json:"name"`
+	Category       []string        `json:"category,omitempty"`
+	Catalog        string          `json:"catalog,omitempty"`
+	FeatureDesc    string          `json:"feature_desc,omitempty"`
+	FeatureList    json.RawMessage `json:"feature_list,omitempty"`
+	Specifications json.RawMessage `json:"specifications,omitempty"`
+	TechInfo       json.RawMessage `json:"techinfo,omitempty"`
+	Tags           []string        `json:"tags,omitempty"`
+	ImageGallery   []string        `json:"image_gallery,omitempty"`
+}
+
+func getProducts(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-type", "application/json")
+	rows, err := db.Query("SELECT id, name, category, catalog, feature_desc, feature_list, specifications, techinfo, tags, image_gallery FROM products")
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+	var products []Product
+	for rows.Next() {
+		var product Product
+		err := rows.Scan(&product.ID, &product.Name, &product.Catalog, &product.Category, &product.FeatureDesc, &product.FeatureList, &product.Specifications, &product.TechInfo, &product.Tags, &product.ImageGallery)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		products = append(products, product)
+	}
+	if err = rows.Err(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	json.NewEncoder(w).Encode(products)
 }
 
 func createProduct(w http.ResponseWriter, r *http.Request) {
@@ -45,33 +70,46 @@ func createProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := `
-		INSERT INTO products (name, category, catalog, feature_desc, feature_list, specifications, techinfo, tags, images)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8,  $9)
-		RETURNING id;`
-	var newID int
-
+        INSERT INTO products (name, category, catalog, feature_desc, feature_list, specifications, techinfo, tags, image_gallery)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id;
+    `
+	// Execute the query
 	err = db.QueryRow(query,
 		newProduct.Name,
-		newProduct.Category,
+		pq.Array(newProduct.Category),
 		newProduct.Catalog,
-		newProduct.Feature_Desc,
-		newProduct.Feature_list,
+		newProduct.FeatureDesc,
+		newProduct.FeatureList,
 		newProduct.Specifications,
 		newProduct.TechInfo,
-		newProduct.Tags,
-		newProduct.Images,
-	).Scan(&newID)
+		pq.Array(newProduct.Tags),
+		pq.Array(newProduct.ImageGallery),
+	).Scan(&newProduct.ID)
 
 	if err != nil {
-		http.Error(w, "Failed to insert product into database", http.StatusInternalServerError)
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == "23505" {
+				http.Error(w, "Product already exists", http.StatusConflict) // HTTP 409 Conflict
+				return
+			}
+		}
+	}
+
+	if newProduct.Name == "" {
+		http.Error(w, "Empty Name is not allowed", http.StatusBadRequest)
 		return
 	}
 
-	newProduct.ID = newID
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	json.NewEncoder(w).Encode(newProduct)
 
 }
+
 func updateProduct(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var updatedProduct Product
@@ -86,20 +124,20 @@ func updateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := `
-        UPDATE products SET name = $1, category = $2, catalog = $3, feature_desc = $4, 
-        feature_list = $5, specifications = $6, techinfo = $7, tags = $8, images = $9 
+        UPDATE products SET name = $1, category = $2, catalog = $3, feature_desc = $4,
+        feature_list = $5, specifications = $6, techinfo = $7, tags = $8, image_gallery = $9
         WHERE id = $10;`
 
 	_, err = db.Exec(query,
 		updatedProduct.Name,
-		updatedProduct.Category,
+		pq.Array(updatedProduct.Category),
 		updatedProduct.Catalog,
-		updatedProduct.Feature_Desc,
-		updatedProduct.Feature_list,
+		updatedProduct.FeatureDesc,
+		updatedProduct.FeatureList,
 		updatedProduct.Specifications,
 		updatedProduct.TechInfo,
-		updatedProduct.Tags,
-		updatedProduct.Images,
+		pq.Array(updatedProduct.Tags),
+		pq.Array(updatedProduct.ImageGallery),
 		updatedProduct.ID,
 	)
 
@@ -148,7 +186,6 @@ func createTag(w http.ResponseWriter, r *http.Request) {
 			if pqErr.Code == "23505" {
 				http.Error(w, "Tag already exists", http.StatusConflict) // HTTP 409 Conflict
 				return
-
 			}
 		}
 	}
