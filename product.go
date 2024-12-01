@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 
@@ -11,27 +12,27 @@ import (
 )
 
 type Tag struct {
-	ID   int    `json:"id"`
+	ID   string `json:"id"`
 	Name string `json:"name"`
 }
 
 type Category struct {
-	ID          int    `json:"id"`
+	ID          string `json:"id"`
 	Name        string `json:"name"`
 	ImgURL      string `json:"imgurl,omitempty"` // Use pointers for nullable fields
 	Description string `json:"description,omitempty"`
 }
 type Product struct {
-	ID             int             `json:"id"`
+	ID             string          `json:"id"`
 	Name           string          `json:"name"`
 	Category       []string        `json:"category,omitempty"`
-	Catalog        string          `json:"catalog,omitempty"`
+	Catalog        json.RawMessage `json:"catalog,omitempty"`
 	FeatureDesc    string          `json:"feature_desc,omitempty"`
 	FeatureList    json.RawMessage `json:"feature_list,omitempty"`
 	Specifications json.RawMessage `json:"specifications,omitempty"`
 	TechInfo       json.RawMessage `json:"techinfo,omitempty"`
 	Tags           []string        `json:"tags,omitempty"`
-	ImageGallery   []string        `json:"image_gallery,omitempty"`
+	ImageGallery   json.RawMessage `json:"image_gallery,omitempty"`
 }
 
 func getProducts(w http.ResponseWriter, r *http.Request) {
@@ -46,7 +47,7 @@ func getProducts(w http.ResponseWriter, r *http.Request) {
 	var products []Product
 	for rows.Next() {
 		var product Product
-		err := rows.Scan(&product.ID, &product.Name, &product.Catalog, &product.Category, &product.FeatureDesc, &product.FeatureList, &product.Specifications, &product.TechInfo, &product.Tags, &product.ImageGallery)
+		err := rows.Scan(&product.ID, &product.Name, pq.Array(&product.Category), &product.Catalog, &product.FeatureDesc, &product.FeatureList, &product.Specifications, &product.TechInfo, pq.Array(&product.Tags), &product.ImageGallery)
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -84,7 +85,7 @@ func createProduct(w http.ResponseWriter, r *http.Request) {
 		newProduct.Specifications,
 		newProduct.TechInfo,
 		pq.Array(newProduct.Tags),
-		pq.Array(newProduct.ImageGallery),
+		newProduct.ImageGallery,
 	).Scan(&newProduct.ID)
 
 	if err != nil {
@@ -95,19 +96,15 @@ func createProduct(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-
 	if newProduct.Name == "" {
 		http.Error(w, "Empty Name is not allowed", http.StatusBadRequest)
 		return
 	}
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	json.NewEncoder(w).Encode(newProduct)
-
 }
 
 func updateProduct(w http.ResponseWriter, r *http.Request) {
@@ -128,7 +125,7 @@ func updateProduct(w http.ResponseWriter, r *http.Request) {
         feature_list = $5, specifications = $6, techinfo = $7, tags = $8, image_gallery = $9
         WHERE id = $10;`
 
-	_, err = db.Exec(query,
+	result, err := db.Exec(query,
 		updatedProduct.Name,
 		pq.Array(updatedProduct.Category),
 		updatedProduct.Catalog,
@@ -137,18 +134,61 @@ func updateProduct(w http.ResponseWriter, r *http.Request) {
 		updatedProduct.Specifications,
 		updatedProduct.TechInfo,
 		pq.Array(updatedProduct.Tags),
-		pq.Array(updatedProduct.ImageGallery),
+		updatedProduct.ImageGallery,
 		updatedProduct.ID,
 	)
-
 	if err != nil {
 		http.Error(w, "Failed to update product", http.StatusInternalServerError)
+		return
+	}
+	// Check if any row was affected
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		http.Error(w, "Failed to retrieve affected rows", http.StatusInternalServerError)
+		return
+	}
+	if rowsAffected == 0 {
+		http.Error(w, "Product not found", http.StatusNotFound)
 		return
 	}
 
 	json.NewEncoder(w).Encode(updatedProduct)
 }
 
+func fetchProduct(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-type", "application/json")
+	id := r.URL.Query().Get("id")
+
+	if id == "" {
+		http.Error(w, "Missing product ID", http.StatusBadRequest)
+		return
+	}
+
+	query := `SELECT id,name, category, catalog, feature_desc, feature_list, specifications, techinfo, tags, image_gallery FROM products WHERE id=$1`
+	var product Product
+
+	err := db.QueryRow(query, id).Scan(&product.ID, &product.Name,
+		pq.Array(&product.Category),
+		&product.Catalog,
+		&product.FeatureDesc,
+		&product.FeatureList,
+		&product.Specifications,
+		&product.TechInfo,
+		pq.Array(&product.Tags),
+		&product.ImageGallery)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Product not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := json.NewEncoder(w).Encode(product); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
 func deleteProduct(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	productID := r.URL.Query().Get("id")

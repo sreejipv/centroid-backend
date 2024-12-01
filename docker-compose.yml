@@ -15,6 +15,9 @@ services:
       DB_USER: postgres
       DB_PASSWORD: mypassword
       DB_NAME: mydb
+      USERNAME: centroidmaster
+      ADPASSWORD: d2PUfbrzVqaMrNF
+      ADEMAIL: sreejith91mec@gmail.com
     depends_on:
       db:
         condition: service_healthy
