@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS tags (
 CREATE TABLE IF NOT EXISTS categories (
     id CHAR(6) DEFAULT substring(gen_random_uuid()::text from 1 for 6) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    imgurl VARCHAR(255),
+    thumbnailurl VARCHAR(255),
+    bannerurl VARCHAR(255),
     description TEXT,
     CONSTRAINT unique_cat_name UNIQUE (name)
 );
@@ -40,7 +41,8 @@ CREATE TABLE IF NOT EXISTS categories (
 CREATE TABLE IF NOT EXISTS industries (
     id CHAR(6) DEFAULT substring(gen_random_uuid()::text from 1 for 6) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    imgurl VARCHAR(255),
+    thumbnailurl VARCHAR(255),
+    bannerurl VARCHAR(255),
     title TEXT,
     subtitle TEXT,
     content TEXT,

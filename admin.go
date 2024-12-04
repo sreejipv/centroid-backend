@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -37,6 +39,15 @@ func CreateAdminUser(db *sql.DB, username, email, password string) error {
 
 	_, err = db.Exec("INSERT INTO admin_user (username, email, password) VALUES ($1, $2, $3)", username, email, hashedPassword)
 	return err
+}
+
+func generateRandomHash() (string, error) {
+	hash := make([]byte, 16) // Generate a 16-byte random hash
+	_, err := rand.Read(hash)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hash), nil
 }
 
 // loginHandler handles the admin login
@@ -99,11 +110,30 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Generate random hash
+	hash, err := generateRandomHash()
+	if err != nil {
+		http.Error(w, "Error generating random hash", http.StatusInternalServerError)
+		return
+	}
+
+	// Combine username with random hash
+	usernameWithHash := username + hash
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     "token",
 		Value:    tokenString,
 		Expires:  expirationTime,
 		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode, // Adjust as necessary
+		Secure:   false,                // Set to true in production with HTTPS
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "userid",
+		Value:    usernameWithHash,
+		Expires:  expirationTime,
+		HttpOnly: false,
 		SameSite: http.SameSiteLaxMode, // Adjust as necessary
 		Secure:   false,                // Set to true in production with HTTPS
 	})

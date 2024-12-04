@@ -11,17 +11,18 @@ import (
 )
 
 type Industry struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	ImgURL   string `json:"imgurl"`
-	Title    string `json:"title"`
-	Subtitle string `json:"subtitle"`
-	Content  string `json:"content"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	ThumbnailURL string `json:"thumbnailurl"`
+	BannerURL    string `json:"bannerurl"`
+	Title        string `json:"title"`
+	Subtitle     string `json:"subtitle"`
+	Content      string `json:"content"`
 }
 
 func getIndustries(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-type", "application/json")
-	rows, err := db.Query("SELECT id, name, imgurl, title, subtitle, content FROM industries")
+	rows, err := db.Query("SELECT id, name, thumbnailurl, bannerurl, title, subtitle, content FROM industries")
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -32,7 +33,7 @@ func getIndustries(w http.ResponseWriter, r *http.Request) {
 	var industries []Industry
 	for rows.Next() {
 		var industry Industry
-		err := rows.Scan(&industry.ID, &industry.Name, &industry.ImgURL, &industry.Title, &industry.Subtitle, &industry.Content)
+		err := rows.Scan(&industry.ID, &industry.Name, &industry.ThumbnailURL, &industry.BannerURL, &industry.Title, &industry.Subtitle, &industry.Content)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -60,11 +61,11 @@ func createIndustry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := `INSERT INTO industries (name, imgurl, title, subtitle, content)
-			  VALUES ($1, $2, $3, $4, $5) RETURNING id`
+	query := `INSERT INTO industries (name, thumbnailurl,bannerurl, title, subtitle, content)
+			  VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
 
 	// Execute the insert query and get the new ID
-	err = db.QueryRow(query, newIndustry.Name, newIndustry.ImgURL, newIndustry.Title, newIndustry.Subtitle, newIndustry.Content).Scan(&newIndustry.ID)
+	err = db.QueryRow(query, newIndustry.Name, newIndustry.ThumbnailURL, newIndustry.BannerURL, newIndustry.Title, newIndustry.Subtitle, newIndustry.Content).Scan(&newIndustry.ID)
 
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok {
@@ -87,8 +88,8 @@ func updateIndustry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := `UPDATE industries SET name = $1, imgurl = $2, title = $3, subtitle = $4, content = $5 WHERE id = $6;`
-	result, err := db.Exec(query, updatedIndustry.Name, updatedIndustry.ImgURL, updatedIndustry.Title, updatedIndustry.Subtitle, updatedIndustry.Content, updatedIndustry.ID)
+	query := `UPDATE industries SET name = $1, thumbnailurl = $2, imgurl = $3, title = $4, subtitle = $5, content = $6 WHERE id = $7;`
+	result, err := db.Exec(query, updatedIndustry.Name, updatedIndustry.ThumbnailURL, updatedIndustry.BannerURL, updatedIndustry.Title, updatedIndustry.Subtitle, updatedIndustry.Content, updatedIndustry.ID)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

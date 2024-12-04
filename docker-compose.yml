@@ -7,17 +7,17 @@ services:
       dockerfile: Dockerfile
     container_name: go_app
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: mydb
-      DB_HOST: db
-      DB_PORT: 5432
+      POSTGRES_USER: ${USER}
+      POSTGRES_PASSWORD: ${password}
+      POSTGRES_DB: ${DB_NAME}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
       DB_USER: postgres
-      DB_PASSWORD: mypassword
-      DB_NAME: mydb
-      USERNAME: centroidmaster
-      ADPASSWORD: d2PUfbrzVqaMrNF
-      ADEMAIL: sreejith91mec@gmail.com
+      DB_PASSWORD: ${password}
+      DB_NAME: ${DB_NAME}
+      USERNAME: ${USERNAME}
+      ADPASSWORD: ${ADPASSWORD}
+      ADEMAIL: ${ADEMAIL}
     depends_on:
       db:
         condition: service_healthy
@@ -30,9 +30,9 @@ services:
     image: postgres:13
     container_name: postgres_db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: mydb
+      POSTGRES_USER: ${USER}
+      POSTGRES_PASSWORD: ${PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:

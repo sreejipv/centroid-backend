@@ -9,7 +9,6 @@ import (
 	"os"
 
 	"github.com/rs/cors" // Import the cors package
-	"golang.org/x/time/rate"
 
 	"github.com/golang-jwt/jwt"
 	_ "github.com/lib/pq"
@@ -158,23 +157,27 @@ func main() {
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
 	})
+	// mail := gomail.NewMessage()
+	// mail.SetHeader("From", "info@centroidpolymer.com")               // Sender's email
+	// mail.SetHeader("To", "info@centroidpolymer.com")                 // Recipient's email
+	// mail.SetHeader("Subject", "Hello from centroidpolymer!")         // Subject
+	// mail.SetBody("text/plain", "This is a test email. from website") // Plain text body
+	// // mail.Attach("/path/to/attachment.pdf")              // Optional attachment (remove if not needed)
+
+	// // Setup SMTP server details
+	// dialer := gomail.NewDialer("smtp.gmail.com", 587, "info@centroidpolymer.com", "")
+
+	// // Send the email
+	// if err := dialer.DialAndSend(mail); err != nil {
+	// 	log.Fatalf("Failed to send email: %v", err)
+	// }
+
+	// log.Println("Email sent successfully!")
 
 	// Start the server with the CORS-enabled handler
 	fmt.Println("Server is running on port 8080...")
 	log.Fatal(http.ListenAndServe(":8080", c.Handler(mux)))
 
-}
-
-var limiter = rate.NewLimiter(1, 5) // 1 request per second with a burst of 5
-
-func rateLimitedHandler(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !limiter.Allow() {
-			http.Error(w, "Too many requests", http.StatusTooManyRequests)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
 }
 
 func authenticate(next http.HandlerFunc) http.HandlerFunc {

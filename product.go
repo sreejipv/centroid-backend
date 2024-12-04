@@ -17,10 +17,11 @@ type Tag struct {
 }
 
 type Category struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	ImgURL      string `json:"imgurl,omitempty"` // Use pointers for nullable fields
-	Description string `json:"description,omitempty"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	ThumbnailURL string `json:"thumbnailurl,omitempty"` // Use pointers for nullable fields
+	BannerUrl    string `json:"bannerurl,omitempty"`    // Use pointers for nullable fields
+	Description  string `json:"description,omitempty"`
 }
 type Product struct {
 	ID             string          `json:"id"`
@@ -37,7 +38,7 @@ type Product struct {
 
 func getProducts(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-type", "application/json")
-	rows, err := db.Query("SELECT id, name, category, catalog, feature_desc, feature_list, specifications, techinfo, tags, image_gallery FROM products")
+	rows, err := db.Query("SELECT id, name, feature_desc, image_gallery  FROM products")
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -47,7 +48,7 @@ func getProducts(w http.ResponseWriter, r *http.Request) {
 	var products []Product
 	for rows.Next() {
 		var product Product
-		err := rows.Scan(&product.ID, &product.Name, pq.Array(&product.Category), &product.Catalog, &product.FeatureDesc, &product.FeatureList, &product.Specifications, &product.TechInfo, pq.Array(&product.Tags), &product.ImageGallery)
+		err := rows.Scan(&product.ID, &product.Name, &product.FeatureDesc, &product.ImageGallery)
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -330,11 +331,11 @@ func createCategory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Name cannot be empty", http.StatusBadRequest)
 		return
 	}
-	query := `INSERT INTO categories ( name, imgurl, description)
-	VALUES ($1, $2, $3)
+	query := `INSERT INTO categories ( name, thumbnailurl, bannerurl, description)
+	VALUES ($1, $2,$3, $4)
 	RETURNING id`
 
-	err = db.QueryRow(query, newCategory.Name, newCategory.ImgURL, newCategory.Description).Scan(&newCategory.ID)
+	err = db.QueryRow(query, newCategory.Name, newCategory.ThumbnailURL, newCategory.BannerUrl, newCategory.Description).Scan(&newCategory.ID)
 
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok {
@@ -350,7 +351,7 @@ func createCategory(w http.ResponseWriter, r *http.Request) {
 }
 func getCategories(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-type", "application/json")
-	rows, err := db.Query("SELECT id, name, imgurl, description FROM categories")
+	rows, err := db.Query("SELECT id, name, thumbnailurl, bannerurl, description FROM categories")
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -360,7 +361,7 @@ func getCategories(w http.ResponseWriter, r *http.Request) {
 	var categories []Category
 	for rows.Next() {
 		var category Category
-		err := rows.Scan(&category.ID, &category.Name, &category.ImgURL, &category.Description)
+		err := rows.Scan(&category.ID, &category.Name, &category.ThumbnailURL, &category.BannerUrl, &category.Description)
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -383,11 +384,11 @@ func updateCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := `UPDATE categories SET name = $1, imgurl = $2, description = $3 WHERE id = $4;`
-	result, err := db.Exec(query, updatedCategory.Name, updatedCategory.ImgURL, updatedCategory.Description, updatedCategory.ID)
+	query := `UPDATE categories SET name = $1, thumbnailurl = $2, bannerurl = $3, description = $4 WHERE id = $5;`
+	result, err := db.Exec(query, updatedCategory.Name, updatedCategory.ThumbnailURL, updatedCategory.BannerUrl, updatedCategory.Description, updatedCategory.ID)
 
 	if err != nil {
-		http.Error(w, "Failed to update category", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
